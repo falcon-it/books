@@ -1,0 +1,7 @@
+.vs
+BooksClient/bin
+BooksClient/obj
+BooksService/bin
+BooksService/obj
+ServiceContract/bin
+ServiceContract/obj
