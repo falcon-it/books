@@ -44,5 +44,9 @@ namespace ServiceContract
         void deleteBookFromBasket(User user, BasketItem book);
         [OperationContract]
         void buyBasket(User user);
+        [OperationContract]
+        Buy[] listBaysAll();
+        [OperationContract]
+        Buy[] listBays(User user);
     }
 }

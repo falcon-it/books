@@ -52,6 +52,7 @@ namespace BooksClient
                 toolStripButton1.Text = "Выйти";
                 toolStripButton2.Visible = true;
                 toolStripButton3.Visible = true;
+                toolStripButton5.Visible = true;
             }
             else
             {
@@ -62,6 +63,7 @@ namespace BooksClient
                 toolStripButton1.Text = "Войти";
                 toolStripButton2.Visible = false;
                 toolStripButton3.Visible = false;
+                toolStripButton5.Visible = false;
             }
         }
 
@@ -93,6 +95,13 @@ namespace BooksClient
             BasketShortInfo bsi = BookServiceClient.instance.Service.getUserBasketShort(BookServiceClient.instance.user);
             toolStripButton3.Text = "Корзина (" + bsi.ToString() + ")...";
             updateBooksList();
+        }
+
+        private void toolStripButton5_Click(object sender, EventArgs e)
+        {
+            BuysForm dlg = new BuysForm(BookServiceClient.instance.user);
+            dlg.Owner = this;
+            dlg.ShowDialog();
         }
     }
 }

@@ -21,7 +21,7 @@ namespace BooksService
         private App()
         {
             m_Books = new Books(m_Authors, m_Genres);
-            m_Baskets = new Baskets(m_Books);
+            m_Baskets = new Baskets(m_Books, m_Users);
         }
 
         public Author[] listAuthors()
@@ -157,6 +157,14 @@ namespace BooksService
             lock (m_Baskets)
             {
                 m_Baskets.buyBasket(user);
+            }
+        }
+
+        public Buy[] listBays(User user)
+        {
+            lock (m_Baskets)
+            {
+                return m_Baskets.listBays(user);
             }
         }
     }

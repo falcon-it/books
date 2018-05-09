@@ -13,10 +13,12 @@ namespace BooksService.Data.Elements
         //                          user_id, BasketItem
         private readonly Dictionary<int, List<BasketItem>> m_EBaskets = new Dictionary<int, List<BasketItem>>();
         private readonly Books m_Books;
+        private readonly Users m_Users;
 
-        public Baskets(Books books)
+        public Baskets(Books books, Users users)
         {
             m_Books = books;
+            m_Users = users;
         }
 
         public void logout(User user)
@@ -198,6 +200,55 @@ namespace BooksService.Data.Elements
                     tr.Rollback();
                 }
             }
+        }
+
+        public Buy[] listBays(User user)
+        {
+            SqlCommand cmd = new SqlCommand(
+                string.Format(
+                    "SELECT * FROM buy b INNER JOIN buy_item bi ON bi.buy_id=b.id{0} ORDER BY b.date DESC, b.id ASC", 
+                    (user == null ? "" : " WHERE b.user_id=@user_id")), DBAccess.getConnection());
+            if (user != null) { cmd.Parameters.Add(new SqlParameter("@user_id", user.id)); }
+            SqlDataReader reader = cmd.ExecuteReader();
+
+            List<Buy> buys = new List<Buy>();
+            try
+            {
+                if (reader.HasRows)
+                {
+                    bool first = true;
+                    int buy_id = 0, user_id = 0;
+                    double price = 0;
+                    DateTime date = DateTime.Now;
+                    List<Buy.BuyItem> books = new List<Buy.BuyItem>();
+
+                    while (reader.Read())
+                    {
+                        int _buy_id = (int)reader.GetValue(0);
+                        if(!first && (_buy_id != buy_id))
+                        {
+                            buys.Add(new Buy(buy_id, date, m_Users.getByID(user_id), price, books.ToArray()));
+                        }
+                        buy_id = _buy_id;
+                        date = (DateTime)reader.GetValue(1);
+                        user_id = (int)reader.GetValue(2);
+                        price = (double)reader.GetValue(3);
+                        books.Add(new Buy.BuyItem((int)reader.GetValue(5), m_Books.getByID((int)reader.GetValue(4))));
+                        if (first) { first = false; }
+                    }
+
+                    if (!first)
+                    {
+                        buys.Add(new Buy(buy_id, date, m_Users.getByID(user_id), price, books.ToArray()));
+                    }
+                }
+            }
+            finally
+            {
+                reader.Close();
+            }
+
+            return buys.ToArray();
         }
     }
 }

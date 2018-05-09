@@ -47,6 +47,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AddEntityForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AddEntityForm.Designer.cs">
+      <DependentUpon>AddEntityForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="BasketForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -59,6 +65,12 @@
     </Compile>
     <Compile Include="BuyerForm.Designer.cs">
       <DependentUpon>BuyerForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="BuysForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BuysForm.Designer.cs">
+      <DependentUpon>BuysForm.cs</DependentUpon>
     </Compile>
     <Compile Include="EditBook.cs">
       <SubType>Form</SubType>
@@ -86,11 +98,17 @@
     <Compile Include="SelectModeForm.Designer.cs">
       <DependentUpon>SelectModeForm.cs</DependentUpon>
     </Compile>
+    <EmbeddedResource Include="AddEntityForm.resx">
+      <DependentUpon>AddEntityForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="BasketForm.resx">
       <DependentUpon>BasketForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="BuyerForm.resx">
       <DependentUpon>BuyerForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="BuysForm.resx">
+      <DependentUpon>BuysForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="EditBook.resx">
       <DependentUpon>EditBook.cs</DependentUpon>

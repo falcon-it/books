@@ -12,7 +12,7 @@ namespace BooksService.Data.Elements
 {
     class Books
     {
-        private readonly List<Book> m_EBook = new List<Book>();
+        private readonly List<Book> m_EBook = new List<Book>(), m_EBookDeleted = new List<Book>();
         //                          book_id, []author_id
         private readonly Dictionary<int, List<int>> m_LinkToAuthor = new Dictionary<int, List<int>>();
         private readonly Authors m_Authors;
@@ -47,7 +47,7 @@ namespace BooksService.Data.Elements
                 reader.Close();
             }
 
-            cmd = new SqlCommand("SELECT * FROM book WHERE deleted=0", DBAccess.getConnection());
+            cmd = new SqlCommand("SELECT * FROM book", DBAccess.getConnection());
             reader = cmd.ExecuteReader();
 
             try
@@ -56,14 +56,22 @@ namespace BooksService.Data.Elements
                 {
                     while (reader.Read())
                     {
-                        m_EBook.Add(
-                            new Book(
-                                (int)reader.GetValue(0), 
-                                (string)reader.GetValue(1), 
-                                (int)reader.GetValue(2), 
-                                (float)reader.GetValue(3),
-                                (m_LinkToAuthor.ContainsKey((int)reader.GetValue(0)) ? authors.getForIDs(m_LinkToAuthor[(int)reader.GetValue(0)]) : new Author[0]),
-                                genres.getForID((int)reader.GetValue(4))));
+                        Book loadedBook = new Book(
+                            (int)reader.GetValue(0),
+                            (string)reader.GetValue(1),
+                            (int)reader.GetValue(2),
+                            (float)reader.GetValue(3),
+                            (m_LinkToAuthor.ContainsKey((int)reader.GetValue(0)) ? authors.getForIDs(m_LinkToAuthor[(int)reader.GetValue(0)]) : new Author[0]),
+                            genres.getForID((int)reader.GetValue(4)));
+
+                        if (((int)reader.GetValue(5)) == 0)
+                        {
+                            m_EBook.Add(loadedBook);
+                        }
+                        else
+                        {
+                            m_EBookDeleted.Add(loadedBook);
+                        }
                     }
                 }
             }
@@ -121,6 +129,7 @@ namespace BooksService.Data.Elements
 
                 m_LinkToAuthor.Add(book_id, authors_ids);
                 newBook = new Book(book_id, name, count, price, m_Authors.getForIDs(authors_ids), m_Genres.getForID(genre.id));
+                m_EBook.Add(newBook);
 
                 tr.Commit();
             }
@@ -204,8 +213,8 @@ namespace BooksService.Data.Elements
             {
                 if(b.id == book.id)
                 {
-                    m_EBook.RemoveAt(m_EBook.IndexOf(b));
-                    if(m_LinkToAuthor.ContainsKey(book.id)) { m_LinkToAuthor.Remove(book.id); }
+                    m_EBook.Remove(b);
+                    m_EBookDeleted.Add(b);
                     break;
                 }
             }

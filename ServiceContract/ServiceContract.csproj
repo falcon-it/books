@@ -45,6 +45,7 @@
     <Compile Include="Entity\BasketInfo.cs" />
     <Compile Include="Entity\BasketItem.cs" />
     <Compile Include="Entity\BasketShortInfo.cs" />
+    <Compile Include="Entity\Buy.cs" />
     <Compile Include="Entity\Book.cs" />
     <Compile Include="Entity\CalulateUserBasketPriceResult.cs" />
     <Compile Include="Entity\Genre.cs" />

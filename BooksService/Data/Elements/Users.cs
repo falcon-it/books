@@ -47,5 +47,15 @@ namespace BooksService.Data.Elements
             m_EUsers.Add(nu);
             return nu;
         }
+
+        public User getByID(int user_id)
+        {
+            foreach(User u in m_EUsers)
+            {
+                if(u.id == user_id) { return u; }
+            }
+
+            throw new KeyNotFoundException("не удалось найти пользователя");
+        }
     }
 }

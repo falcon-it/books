@@ -83,5 +83,15 @@ namespace BooksService
         {
             App.instance.buyBasket(user);
         }
+
+        public Buy[] listBaysAll()
+        {
+            return App.instance.listBays(null);
+        }
+
+        public Buy[] listBays(User user)
+        {
+            return App.instance.listBays(user);
+        }
     }
 }

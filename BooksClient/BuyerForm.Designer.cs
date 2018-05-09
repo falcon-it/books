@@ -43,6 +43,7 @@
             this.price = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.genre = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.authors = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.toolStripButton5 = new System.Windows.Forms.ToolStripButton();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.SuspendLayout();
@@ -56,7 +57,8 @@
             this.toolStripButton4,
             this.toolStripSeparator1,
             this.toolStripButton2,
-            this.toolStripButton3});
+            this.toolStripButton3,
+            this.toolStripButton5});
             this.toolStrip1.Location = new System.Drawing.Point(0, 0);
             this.toolStrip1.Name = "toolStrip1";
             this.toolStrip1.Size = new System.Drawing.Size(841, 25);
@@ -170,6 +172,17 @@
             this.authors.Name = "authors";
             this.authors.ReadOnly = true;
             // 
+            // toolStripButton5
+            // 
+            this.toolStripButton5.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.toolStripButton5.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButton5.Image")));
+            this.toolStripButton5.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripButton5.Name = "toolStripButton5";
+            this.toolStripButton5.Size = new System.Drawing.Size(140, 22);
+            this.toolStripButton5.Text = "Совершённые покупки";
+            this.toolStripButton5.Visible = false;
+            this.toolStripButton5.Click += new System.EventHandler(this.toolStripButton5_Click);
+            // 
             // BuyerForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -203,5 +216,6 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn authors;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.ToolStripButton toolStripButton4;
+        private System.Windows.Forms.ToolStripButton toolStripButton5;
     }
 }

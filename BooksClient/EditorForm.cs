@@ -72,5 +72,12 @@ namespace BooksClient
                 updateBooksList();
             }
         }
+
+        private void toolStripButton5_Click(object sender, EventArgs e)
+        {
+            BuysForm dlg = new BuysForm();
+            dlg.Owner = this;
+            dlg.ShowDialog();
+        }
     }
 }

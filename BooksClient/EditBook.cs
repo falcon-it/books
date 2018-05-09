@@ -141,5 +141,53 @@ namespace BooksClient
                 Close();
             }
         }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            AddEntityForm dlg = new AddEntityForm();
+            dlg.Owner = this;
+            if(dlg.ShowDialog() == DialogResult.OK)
+            {
+                Author na = BookServiceClient.instance.Service.addNewAuthor(dlg.NewValue);
+                bool exist = false;
+                foreach(object a in listBox1.Items)
+                {
+                    AuthorItem ai = (AuthorItem)a;
+                    if(ai.author.id == na.id)
+                    {
+                        exist = true;
+                        break;
+                    }
+                }
+                if(!exist)
+                {
+                    listBox1.Items.Add(new AuthorItem(na));
+                }
+            }
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            AddEntityForm dlg = new AddEntityForm();
+            dlg.Owner = this;
+            if (dlg.ShowDialog() == DialogResult.OK)
+            {
+                Genre ng = BookServiceClient.instance.Service.addNewGenre(dlg.NewValue);
+                bool exist = false;
+                foreach (object g in comboBox1.Items)
+                {
+                    GenreItem gi = (GenreItem)g;
+                    if (gi.genre.id == ng.id)
+                    {
+                        exist = true;
+                        break;
+                    }
+                }
+                if (!exist)
+                {
+                    comboBox1.Items.Add(new GenreItem(ng));
+                }
+            }
+        }
     }
 }
