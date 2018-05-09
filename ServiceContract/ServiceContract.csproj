@@ -50,6 +50,8 @@
     <Compile Include="Entity\CalulateUserBasketPriceResult.cs" />
     <Compile Include="Entity\Genre.cs" />
     <Compile Include="IBooksService.cs" />
+    <Compile Include="ICallbackService.cs" />
+    <Compile Include="IClientCallback.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Entity\User.cs" />
   </ItemGroup>

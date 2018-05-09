@@ -22,7 +22,7 @@ namespace ServiceContract
 
         [OperationContract]
         Book addNewBook(string name, int count, float price, Author[] authors, Genre genre);
-        [OperationContract]
+        [OperationContract(IsOneWay = true)]
         void saveBook(Book book);
         [OperationContract]
         void deleteBook(Book book);

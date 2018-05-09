@@ -5,23 +5,64 @@ using System.Text;
 using System.Threading.Tasks;
 using BooksService.Data.Elements;
 using ServiceContract.Entity;
+using ServiceContract;
 
 namespace BooksService
 {
     class App
     {
         public static readonly App instance = new App();
+        public delegate void updateBookDelegate();
 
         private readonly Authors m_Authors = new Authors();
         private readonly Genres m_Genres = new Genres();
         private readonly Books m_Books;
         private readonly Users m_Users = new Users();
         private readonly Baskets m_Baskets;
+        private readonly List<IClientCallback> m_clientCallbacks =  new List<IClientCallback>();
 
         private App()
         {
             m_Books = new Books(m_Authors, m_Genres);
             m_Baskets = new Baskets(m_Books, m_Users);
+        }
+
+        public void addClientCallBack(IClientCallback cc)
+        {
+            lock (m_clientCallbacks)
+            {
+                m_clientCallbacks.Add(cc);
+            }
+        }
+
+        public void delClientCallBack(IClientCallback cc)
+        {
+            lock (m_clientCallbacks)
+            {
+                m_clientCallbacks.Remove(cc);
+            }
+        }
+
+        private void updateBook()
+        {
+            System.Threading.ThreadPool.QueueUserWorkItem((state) =>
+            {
+                //System.Threading.Thread.Sleep(1000);
+                lock (m_clientCallbacks)
+                {
+                    foreach (IClientCallback cc in m_clientCallbacks)
+                    {
+                        try
+                        {
+                            cc.updateBooks();
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e);
+                        }
+                    }
+                }
+            });
         }
 
         public Author[] listAuthors()
@@ -82,10 +123,13 @@ namespace BooksService
 
         public Book addNewBook(string name, int count, float price, Author[] authors, Genre genre)
         {
+            Book ub = null;
             lock (m_Books)
             {
-                return m_Books.add(name, count, price, authors, genre);
+                ub = m_Books.add(name, count, price, authors, genre);
             }
+            updateBook();
+            return ub;
         }
 
         public void saveBook(Book book)
@@ -94,6 +138,7 @@ namespace BooksService
             {
                 m_Books.save(book);
             }
+            updateBook();
         }
 
         public void deleteBook(Book book)
@@ -102,6 +147,7 @@ namespace BooksService
             {
                 m_Books.delete(book);
             }
+            updateBook();
         }
 
         public User login(string name)
@@ -158,6 +204,7 @@ namespace BooksService
             {
                 m_Baskets.buyBasket(user);
             }
+            updateBook();
         }
 
         public Buy[] listBays(User user)

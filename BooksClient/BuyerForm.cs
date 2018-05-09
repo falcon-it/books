@@ -16,6 +16,7 @@ namespace BooksClient
         {
             InitializeComponent();
             updateBooksList();
+            BookServiceClient.instance.updateDelegate = () => { this.Invoke((Action)(delegate () { updateBooksList(); })); };
         }
         private void updateBooksList()
         {
@@ -102,6 +103,11 @@ namespace BooksClient
             BuysForm dlg = new BuysForm(BookServiceClient.instance.user);
             dlg.Owner = this;
             dlg.ShowDialog();
+        }
+
+        private void BuyerForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            BookServiceClient.instance.updateDelegate = null;
         }
     }
 }

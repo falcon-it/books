@@ -5,11 +5,19 @@ using System.Text;
 using System.Threading.Tasks;
 using ServiceContract;
 using ServiceContract.Entity;
+using System.ServiceModel;
 
 namespace BooksService
 {
+    //[ServiceBehavior(InstanceContextMode = InstanceContextMode.PerSession, ConcurrencyMode = ConcurrencyMode.Single)]
     class BooksServiceImpl : IBooksService
     {
+        public BooksServiceImpl()
+        {
+            //Console.WriteLine(GetHashCode());
+            //IClientCallback clientCallback = OperationContext.Current.GetCallbackChannel<IClientCallback>();
+            //App.instance.addClientCallBack(clientCallback);
+        }
         public Author addNewAuthor(string name)
         {
             return App.instance.addAuthor(name);
