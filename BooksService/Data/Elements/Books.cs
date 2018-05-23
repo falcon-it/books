@@ -7,12 +7,15 @@ using ServiceContract.Entity;
 using BooksService.Data;
 using System.Data.SqlClient;
 using System.Data;
+using System.Data.Linq;
+using dbBook = BooksService.Data.Elements.Entity.Book;
+using dbAuthorBookLink = BooksService.Data.Elements.Entity.AuthorBookLink;
 
 namespace BooksService.Data.Elements
 {
     class Books
     {
-        private readonly List<Book> m_EBook = new List<Book>(), m_EBookDeleted = new List<Book>();
+        private readonly List<dbBook> m_EBook = new List<dbBook>(), m_EBookDeleted = new List<dbBook>();
         //                          book_id, []author_id
         private readonly Dictionary<int, List<int>> m_LinkToAuthor = new Dictionary<int, List<int>>();
         private readonly Authors m_Authors;
@@ -23,193 +26,162 @@ namespace BooksService.Data.Elements
             m_Authors = authors;
             m_Genres = genres;
 
-            SqlCommand cmd = new SqlCommand("SELECT * FROM author_book_link", DBAccess.getConnection());
-            SqlDataReader reader = cmd.ExecuteReader();
-            try
+            using (SqlConnection conn = DBAccess.getConnection())
             {
-                if (reader.HasRows)
+                DataContext db = new DataContext(conn);
+
+                Table<dbAuthorBookLink> links = db.GetTable<dbAuthorBookLink>();
+
+                foreach(dbAuthorBookLink ab in links)
                 {
-                    while (reader.Read())
+                    if (!m_LinkToAuthor.ContainsKey(ab.book_id))
                     {
-                        int key = (int)reader.GetValue(0);
-
-                        if (!m_LinkToAuthor.ContainsKey(key))
-                        {
-                            m_LinkToAuthor.Add(key, new List<int>());
-                        }
-
-                        m_LinkToAuthor[key].Add((int)reader.GetValue(1));
+                        m_LinkToAuthor.Add(ab.book_id, new List<int>());
                     }
+
+                    m_LinkToAuthor[ab.book_id].Add(ab.author_id);
                 }
-            }
-            finally
-            {
-                reader.Close();
-            }
 
-            cmd = new SqlCommand("SELECT * FROM book", DBAccess.getConnection());
-            reader = cmd.ExecuteReader();
+                Table<dbBook> books = db.GetTable<dbBook>();
 
-            try
-            {
-                if (reader.HasRows)
+                foreach(dbBook b in books)
                 {
-                    while (reader.Read())
-                    {
-                        Book loadedBook = new Book(
-                            (int)reader.GetValue(0),
-                            (string)reader.GetValue(1),
-                            (int)reader.GetValue(2),
-                            (float)reader.GetValue(3),
-                            (m_LinkToAuthor.ContainsKey((int)reader.GetValue(0)) ? authors.getForIDs(m_LinkToAuthor[(int)reader.GetValue(0)]) : new Author[0]),
-                            genres.getForID((int)reader.GetValue(4)));
-
-                        if (((int)reader.GetValue(5)) == 0)
-                        {
-                            m_EBook.Add(loadedBook);
-                        }
-                        else
-                        {
-                            m_EBookDeleted.Add(loadedBook);
-                        }
-                    }
+                    b.genre = m_Genres.getForID(b.genre_id);
+                    b.authors = (m_LinkToAuthor.ContainsKey(b.id) ? 
+                        m_Authors.getForIDs(m_LinkToAuthor[b.id]) : new List<Entity.Author>());
+                    if (b.isDeleted) { m_EBookDeleted.Add(b); }
+                    else { m_EBook.Add(b); }
                 }
-            }
-            catch(Exception e)
-            {
-                Console.WriteLine(e);
-            }
-            finally
-            {
-                reader.Close();
             }
         }
 
         public Book[] list()
         {
-            return m_EBook.ToArray();
+            return m_EBook.ConvertAll<Book>(delegate (dbBook b) { return (Book)b; }).ToArray();
         }
 
         public Book add(string name, int count, float price, Author[] authors, Genre genre)
         {
-            Book newBook = null;
-            SqlTransaction tr = DBAccess.getConnection().BeginTransaction();
-
-            try
+            using (SqlConnection conn = DBAccess.getConnection())
             {
-                SqlCommand cmd = new SqlCommand("INSERT INTO book (name, count, price, genre_id) VALUES (@name, @count, @price, @genre_id);SELECT SCOPE_IDENTITY();", DBAccess.getConnection());
-                cmd.Transaction = tr;
-                cmd.Parameters.Add(new SqlParameter("@name", name));
-                cmd.Parameters.Add(new SqlParameter("@count", count));
-                cmd.Parameters.Add(new SqlParameter("@price", price));
-                cmd.Parameters.Add(new SqlParameter("@genre_id", genre.id));
-                int book_id = decimal.ToInt32((decimal)cmd.ExecuteScalar());
+                DataContext db = new DataContext(conn);
+                db.Transaction = db.Connection.BeginTransaction();
 
-                List<int> authors_ids = new List<int>();
-                DataTable dt = new DataTable("author_book_link");
-
-                dt.Columns.Add(new DataColumn("book_id", typeof(int)));
-                dt.Columns.Add(new DataColumn("author_id", typeof(int)));
-
-                foreach (Author a in authors)
+                try
                 {
-                    DataRow newRow = dt.NewRow();
-                    newRow["book_id"] = book_id;
-                    newRow["author_id"] = a.id;
-                    dt.Rows.Add(newRow);
-                    authors_ids.Add(a.id);
-                }
+                    dbBook nb = new dbBook();
+                    nb.name = name;
+                    nb.count = count;
+                    nb.price = price;
+                    nb.genre_id = genre.id;
+                    nb.genre = m_Genres.getForID(nb.genre_id);
 
-                using (SqlBulkCopy sbk = new SqlBulkCopy(DBAccess.getConnection(), SqlBulkCopyOptions.KeepIdentity, tr))
+                    db.GetTable<dbBook>().InsertOnSubmit(nb);
+                    db.SubmitChanges();
+
+                    List<int> aIDs = new List<int>();
+                    Table<dbAuthorBookLink> linkTbl = db.GetTable<dbAuthorBookLink>();
+                    foreach (Author a in authors)
+                    {
+                        dbAuthorBookLink nl = new dbAuthorBookLink();
+                        nl.book_id = nb.id;
+                        nl.author_id = a.id;
+                        linkTbl.InsertOnSubmit(nl);
+                        aIDs.Add(a.id);
+                    }
+                    nb.authors = m_Authors.getForIDs(aIDs);
+                    db.SubmitChanges();
+
+                    m_EBook.Add(nb);
+                    m_LinkToAuthor.Add(nb.id, aIDs);
+
+                    db.Transaction.Commit();
+
+                    return (Book)nb;
+                }
+                catch(Exception e)
                 {
-                    sbk.BatchSize = 10;
-                    sbk.DestinationTableName = "author_book_link";
-                    sbk.WriteToServer(dt);
+                    db.Transaction.Rollback();
+                    throw e;
                 }
-
-                m_LinkToAuthor.Add(book_id, authors_ids);
-                newBook = new Book(book_id, name, count, price, m_Authors.getForIDs(authors_ids), m_Genres.getForID(genre.id));
-                m_EBook.Add(newBook);
-
-                tr.Commit();
             }
-            catch(Exception e)
-            {
-                tr.Rollback();
-            }
-
-            return newBook;
         }
 
         public void save(Book book)
         {
-            SqlTransaction tr = DBAccess.getConnection().BeginTransaction();
-
-            try
+            using (SqlConnection conn = DBAccess.getConnection())
             {
-                SqlCommand cmd = new SqlCommand("UPDATE book SET name=@name, count=@count, price=@price, genre_id=@genre_id WHERE id=@id", DBAccess.getConnection());
-                cmd.Transaction = tr;
-                cmd.Parameters.Add(new SqlParameter("@id", book.id));
-                cmd.Parameters.Add(new SqlParameter("@name", book.name));
-                cmd.Parameters.Add(new SqlParameter("@count", book.count));
-                cmd.Parameters.Add(new SqlParameter("@price", book.price));
-                cmd.Parameters.Add(new SqlParameter("@genre_id", book.genre.id));
-                cmd.ExecuteNonQuery();
+                DataContext db = new DataContext(conn);
+                db.Transaction = db.Connection.BeginTransaction();
 
-                cmd = new SqlCommand("DELETE FROM author_book_link WHERE book_id=@book_id", DBAccess.getConnection());
-                cmd.Transaction = tr;
-                cmd.Parameters.Add(new SqlParameter("@book_id", book.id));
-                cmd.ExecuteNonQuery();
-
-                List<int> authors_ids = new List<int>();
-                DataTable dt = new DataTable("author_book_link");
-
-                dt.Columns.Add(new DataColumn("book_id", typeof(int)));
-                dt.Columns.Add(new DataColumn("author_id", typeof(int)));
-
-                foreach (Author a in book.authors)
+                try
                 {
-                    DataRow newRow = dt.NewRow();
-                    newRow["book_id"] = book.id;
-                    newRow["author_id"] = a.id;
-                    dt.Rows.Add(newRow);
-                    authors_ids.Add(a.id);
-                }
+                    dbBook ub = (from b in db.GetTable<dbBook>() where b.id == book.id select b).First();
+                    ub.name = book.name;
+                    ub.count = book.count;
+                    ub.price = book.price;
+                    ub.genre_id = book.genre.id;
+                    ub.genre = m_Genres.getForID(ub.genre_id);
 
-                using (SqlBulkCopy sbk = new SqlBulkCopy(DBAccess.getConnection(), SqlBulkCopyOptions.KeepIdentity, tr))
-                {
-                    sbk.BatchSize = 10;
-                    sbk.DestinationTableName = "author_book_link";
-                    sbk.WriteToServer(dt);
-                }
+                    Table<dbAuthorBookLink> link_table = db.GetTable<dbAuthorBookLink>();
+                    var del_links = from l in link_table where l.book_id == book.id select l;
+                    foreach(var del_item in del_links) { link_table.DeleteOnSubmit(del_item); }
 
-                foreach(Book bk in m_EBook)
-                {
-                    if(bk.id == book.id)
+                    List<int> aIDs = new List<int>();
+                    Func<int, int, dbAuthorBookLink> link_builder = 
+                        delegate (int author_id, int book_id)
+                        {
+                            dbAuthorBookLink newLink = new dbAuthorBookLink();
+                            newLink.book_id = book_id;
+                            newLink.author_id = author_id;
+                            return newLink;
+                        };
+                    foreach (Author a in book.authors)
                     {
-                        m_EBook[m_EBook.IndexOf(bk)] = book;
-                        break;
+                        aIDs.Add(a.id);
+                        link_table.InsertOnSubmit(link_builder(a.id, ub.id));
                     }
+                    ub.authors = m_Authors.getForIDs(aIDs);
+
+                    db.SubmitChanges();
+
+                    int indx = m_EBook.FindIndex(x => x.id == book.id);
+                    if(indx == -1) { m_EBook.Add(ub); }
+                    else { m_EBook[indx] = ub; }
+
+                    if(m_LinkToAuthor.ContainsKey(ub.id)) { m_LinkToAuthor[ub.id] = aIDs; }
+                    else { m_LinkToAuthor.Add(ub.id, aIDs); }
+
+                    db.Transaction.Commit();
                 }
-
-                m_LinkToAuthor[book.id] = authors_ids;
-
-                tr.Commit();
-            }
-            catch (Exception e)
-            {
-                tr.Rollback();
+                catch(Exception)
+                {
+                    db.Transaction.Rollback();
+                }
             }
         }
 
         public void delete(Book book)
         {
-            SqlCommand cmd = new SqlCommand("UPDATE book SET deleted=@deleted WHERE id=@id", DBAccess.getConnection());
-            cmd.Parameters.Add(new SqlParameter("@id", book.id));
-            cmd.Parameters.Add(new SqlParameter("@deleted", 1));
-            cmd.ExecuteNonQuery();
+            using (SqlConnection conn = DBAccess.getConnection())
+            {
+                DataContext db = new DataContext(conn);
+                db.Transaction = db.Connection.BeginTransaction();
 
-            foreach(Book b in m_EBook)
+                try
+                {
+                    dbBook dBook = (from d in db.GetTable<dbBook>() where d.id == book.id select d).First();
+                    dBook.deleted = 1;
+                    db.SubmitChanges();
+                    db.Transaction.Commit();
+                }
+                finally
+                {
+                    db.Transaction.Rollback();
+                }
+            }
+
+            foreach (dbBook b in m_EBook)
             {
                 if(b.id == book.id)
                 {

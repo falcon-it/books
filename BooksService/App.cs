@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using BooksService.Data.Elements;
 using ServiceContract.Entity;
 using ServiceContract;
+using dbAuthor = BooksService.Data.Elements.Entity.Author;
+using dbGenre = BooksService.Data.Elements.Entity.Genre;
 
 namespace BooksService
 {
@@ -85,7 +87,7 @@ namespace BooksService
         {
             lock (m_Authors)
             {
-                return m_Authors.getForIDs(ids);
+                return m_Authors.getForIDs(ids).ConvertAll<Author>(i => (Author)i).ToArray();
             }
         }
 
@@ -109,7 +111,7 @@ namespace BooksService
         {
             lock (m_Genres)
             {
-                return m_Genres.getForID(id);
+                return (Genre)m_Genres.getForID(id);
             }
         }
 

@@ -34,8 +34,6 @@ namespace BooksService
                 };
                 ServiceBase.Run(ServicesToRun);
             }
-
-            DBAccess.Close();
         }
     }
 }

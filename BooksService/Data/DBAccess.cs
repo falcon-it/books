@@ -10,26 +10,11 @@ namespace BooksService.Data
 {
     static class DBAccess
     {
-        private static SqlConnection g_Connection;
-
         public static SqlConnection getConnection()
         {
-            if(g_Connection == null)
-            {
-                g_Connection = new SqlConnection(ConfigurationManager.AppSettings["sqlserver"]);
-                g_Connection.Open();
-            }
-
-            return g_Connection;
-        }
-
-        public static void Close()
-        {
-            if(g_Connection != null)
-            {
-                g_Connection.Close();
-                g_Connection = null;
-            }
+            SqlConnection _Connection = new SqlConnection(ConfigurationManager.AppSettings["sqlserver"]);
+            _Connection.Open();
+            return _Connection;
         }
     }
 }

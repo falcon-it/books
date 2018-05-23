@@ -1,60 +1,60 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Data.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ServiceContract.Entity;
 using System.Data.SqlClient;
 using BooksService.Data;
+using dbGenre = BooksService.Data.Elements.Entity.Genre;
 
 namespace BooksService.Data.Elements
 {
     class Genres
     {
-        private readonly List<Genre> m_EGenres = new List<Genre>();
+        private readonly List<dbGenre> m_EGenres = new List<dbGenre>();
 
         public Genres()
         {
-            SqlCommand cmd = new SqlCommand("SELECT * FROM genre", DBAccess.getConnection());
-            SqlDataReader reader = cmd.ExecuteReader();
+            using (SqlConnection conn = DBAccess.getConnection())
+            {
+                DataContext db = new DataContext(conn);
 
-            try
-            {
-                if (reader.HasRows)
+                Table<dbGenre> genres = db.GetTable<dbGenre>();
+                foreach(dbGenre gen in genres)
                 {
-                    while (reader.Read())
-                    {
-                        m_EGenres.Add(new Genre((int)reader.GetValue(0), (string)reader.GetValue(1)));
-                    }
+                    m_EGenres.Add(gen);
                 }
-            }
-            finally
-            {
-                reader.Close();
             }
         }
         public Genre[] list()
         {
-            return m_EGenres.ToArray();
+            return m_EGenres.ConvertAll<Genre>(delegate (dbGenre g) { return (Genre)g; }).ToArray<Genre>();
         }
 
         public Genre add(string name)
         {
-            foreach (Genre g in m_EGenres)
+            foreach (dbGenre g in m_EGenres)
             {
-                if (g.name == name) { return g; }
+                if (g.name == name) { return (Genre)g; }
             }
 
-            SqlCommand cmd = new SqlCommand("INSERT INTO genre (name) VALUES (@name);SELECT SCOPE_IDENTITY();", DBAccess.getConnection());
-            cmd.Parameters.Add(new SqlParameter("@name", name));
-            Genre ng = new Genre(decimal.ToInt32((decimal)cmd.ExecuteScalar()), name);
-            m_EGenres.Add(ng);
-            return ng;
+            using (SqlConnection conn = DBAccess.getConnection())
+            {
+                dbGenre ng = new dbGenre();
+                ng.name = name;
+                DataContext db = new DataContext(conn);
+                db.GetTable<dbGenre>().InsertOnSubmit(ng);
+                db.SubmitChanges();
+                m_EGenres.Add(ng);
+                return (Genre)ng;
+            }
         }
 
-        public Genre getForID(int id)
+        public dbGenre getForID(int id)
         {
-            foreach (Genre g in m_EGenres)
+            foreach (dbGenre g in m_EGenres)
             {
                 if (g.id == id) { return g; }
             }

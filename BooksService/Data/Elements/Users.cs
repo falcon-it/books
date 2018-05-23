@@ -6,46 +6,46 @@ using System.Threading.Tasks;
 using ServiceContract.Entity;
 using System.Data.SqlClient;
 using BooksService.Data;
+using System.Data.Linq;
+using dbUser = BooksService.Data.Elements.Entity.User;
 
 namespace BooksService.Data.Elements
 {
     class Users
     {
-        private readonly List<User> m_EUsers = new List<User>();
+        private readonly List<dbUser> m_EUsers = new List<dbUser>();
 
         public Users()
         {
-            SqlCommand cmd = new SqlCommand("SELECT * FROM users", DBAccess.getConnection());
-            SqlDataReader reader = cmd.ExecuteReader();
+            using (SqlConnection conn = DBAccess.getConnection())
+            {
+                DataContext db = new DataContext(conn);
 
-            try
-            {
-                if (reader.HasRows)
+                Table<dbUser> users = db.GetTable<dbUser>();
+                foreach (dbUser u in users)
                 {
-                    while (reader.Read())
-                    {
-                        m_EUsers.Add(new User((int)reader.GetValue(0), (string)reader.GetValue(1)));
-                    }
+                    m_EUsers.Add(u);
                 }
-            }
-            finally
-            {
-                reader.Close();
             }
         }
 
         public User login(string name)
         {
-            foreach (User u in m_EUsers)
+            foreach (dbUser u in m_EUsers)
             {
-                if(u.name == name) { return u; }
+                if(u.name == name) { return (User)u; }
             }
 
-            SqlCommand cmd = new SqlCommand("INSERT INTO users (name) VALUES (@name);SELECT SCOPE_IDENTITY();", DBAccess.getConnection());
-            cmd.Parameters.Add(new SqlParameter("@name", name));
-            User nu = new User(decimal.ToInt32((decimal)cmd.ExecuteScalar()), name);
-            m_EUsers.Add(nu);
-            return nu;
+            using (SqlConnection conn = DBAccess.getConnection())
+            {
+                dbUser nu = new dbUser();
+                nu.name = name;
+                DataContext db = new DataContext(conn);
+                db.GetTable<dbUser>().InsertOnSubmit(nu);
+                db.SubmitChanges();
+                m_EUsers.Add(nu);
+                return (User)nu;
+            }
         }
 
         public User getByID(int user_id)

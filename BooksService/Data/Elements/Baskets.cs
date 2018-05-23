@@ -5,6 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using ServiceContract.Entity;
 using System.Data.SqlClient;
+using System.Data;
+using System.Data.Linq;
+using dbBuy = BooksService.Data.Elements.Entity.Buy;
+using dbBook = BooksService.Data.Elements.Entity.Book;
+using dbBuyItem = BooksService.Data.Elements.Entity.BuyItem;
 
 namespace BooksService.Data.Elements
 {
@@ -162,93 +167,106 @@ namespace BooksService.Data.Elements
                 CalulateUserBasketPriceResult cbr = calculateBasket(user);
                 if(cbr.count == 0) { return; }
 
-                SqlTransaction tr = DBAccess.getConnection().BeginTransaction();
-
-                try
+                using (SqlConnection conn = DBAccess.getConnection())
                 {
-                    SqlCommand cmd = new SqlCommand("INSERT INTO buy (date, user_id, price) VALUES (@date, @user_id, @price);SELECT SCOPE_IDENTITY();", DBAccess.getConnection());
-                    cmd.Transaction = tr;
-                    cmd.Parameters.Add(new SqlParameter("@date", DateTime.Now));
-                    cmd.Parameters.Add(new SqlParameter("@user_id", user.id));
-                    cmd.Parameters.Add(new SqlParameter("@price", cbr.price));
-                    int buy_id = decimal.ToInt32((decimal)cmd.ExecuteScalar());
+                    DataContext db = new DataContext(conn);
+                    db.Transaction = conn.BeginTransaction();
 
-                    foreach(BasketItem bi in m_EBaskets[user.id])
+                    try
                     {
-                        bi.book.count -= bi.count;
+                        dbBuy nb = new dbBuy();
+                        nb.date = DateTime.Now;
+                        nb.user_id = user.id;
+                        nb.price = cbr.price;
+                        db.GetTable<dbBuy>().InsertOnSubmit(nb);
+                        db.SubmitChanges();
 
-                        cmd = new SqlCommand("UPDATE book SET count=@count WHERE id=@id", DBAccess.getConnection());
-                        cmd.Transaction = tr;
-                        cmd.Parameters.Add(new SqlParameter("@count", bi.book.count));
-                        cmd.Parameters.Add(new SqlParameter("@id", bi.book.id));
-                        cmd.ExecuteNonQuery();
+                        List<int> books_id = new List<int>(m_EBaskets[user.id].Count),
+                            books_count = new List<int>(m_EBaskets[user.id].Count);
+                        Table<dbBuyItem> b_item_table = db.GetTable<dbBuyItem>();
+                        foreach (BasketItem bi in m_EBaskets[user.id])
+                        {
+                            bi.book.count -= bi.count;
+                            books_id.Add(bi.book.id);
+                            books_count.Add(bi.book.count);
+                            dbBuyItem b_item = new dbBuyItem();
+                            b_item.book_id = bi.book.id;
+                            b_item.buy_id = nb.id;
+                            b_item.count = bi.count;
+                            b_item_table.InsertOnSubmit(b_item);
+                        }
 
-                        cmd = new SqlCommand("INSERT INTO buy_item (book_id, count, buy_id) VALUES (@book_id, @count, @buy_id)", DBAccess.getConnection());
-                        cmd.Transaction = tr;
-                        cmd.Parameters.Add(new SqlParameter("@book_id", bi.book.id));
-                        cmd.Parameters.Add(new SqlParameter("@count", bi.count));
-                        cmd.Parameters.Add(new SqlParameter("@buy_id", buy_id));
-                        cmd.ExecuteNonQuery();
+                        var updated_books = from b in db.GetTable<dbBook>() where books_id.Contains(b.id) select b;
+                        foreach(dbBook updated_book in updated_books)
+                        {
+                            updated_book.count = books_count[books_id.IndexOf(updated_book.id)];
+                        }
+
+                        db.SubmitChanges();
+
+                        m_EBaskets.Remove(user.id);
+
+                        db.Transaction.Commit();
                     }
-
-                    m_EBaskets.Remove(user.id);
-
-                    tr.Commit();
-                }
-                catch(Exception e)
-                {
-                    tr.Rollback();
+                    catch(Exception e)
+                    {
+                        db.Transaction.Rollback();
+                        throw e;
+                    }
                 }
             }
         }
 
         public Buy[] listBays(User user)
         {
-            SqlCommand cmd = new SqlCommand(
-                string.Format(
-                    "SELECT * FROM buy b INNER JOIN buy_item bi ON bi.buy_id=b.id{0} ORDER BY b.date DESC, b.id ASC", 
-                    (user == null ? "" : " WHERE b.user_id=@user_id")), DBAccess.getConnection());
-            if (user != null) { cmd.Parameters.Add(new SqlParameter("@user_id", user.id)); }
-            SqlDataReader reader = cmd.ExecuteReader();
-
-            List<Buy> buys = new List<Buy>();
-            try
+            using (SqlConnection conn = DBAccess.getConnection())
             {
-                if (reader.HasRows)
+                DataContext db = new DataContext(conn);
+
+                List<Buy> buys = new List<Buy>();
+                var list = from b in db.GetTable<dbBuy>() join bi in db.GetTable<dbBuyItem>() on b.id equals bi.buy_id orderby b.date descending, b.id ascending
+                           select new
+                           {
+                               buy_id = b.id,
+                               buy_date = b.date,
+                               buy_price = b.price,
+                               buy_user = b.user_id,
+                               book_count = bi.count,
+                               book_id = bi.book_id
+                           };
+                if (user != null) { list = list.Where(b => b.buy_user == user.id); }
+
+                bool first = true;
+                int buy_id = 0, user_id = 0;
+                DateTime dt = DateTime.Now;
+                double price = 0;
+                List<Buy.BuyItem> books = new List<Buy.BuyItem>();
+                foreach (var list_item in list)
                 {
-                    bool first = true;
-                    int buy_id = 0, user_id = 0;
-                    double price = 0;
-                    DateTime date = DateTime.Now;
-                    List<Buy.BuyItem> books = new List<Buy.BuyItem>();
+                    int _buy_id = list_item.buy_id;
 
-                    while (reader.Read())
+                    if(!first && (_buy_id != buy_id))
                     {
-                        int _buy_id = (int)reader.GetValue(0);
-                        if(!first && (_buy_id != buy_id))
-                        {
-                            buys.Add(new Buy(buy_id, date, m_Users.getByID(user_id), price, books.ToArray()));
-                        }
-                        buy_id = _buy_id;
-                        date = (DateTime)reader.GetValue(1);
-                        user_id = (int)reader.GetValue(2);
-                        price = (double)reader.GetValue(3);
-                        books.Add(new Buy.BuyItem((int)reader.GetValue(5), m_Books.getByID((int)reader.GetValue(4))));
-                        if (first) { first = false; }
+                        buys.Add(new Buy(buy_id, dt, m_Users.getByID(user_id), price, books.ToArray()));
+                        books.Clear();
                     }
 
-                    if (!first)
-                    {
-                        buys.Add(new Buy(buy_id, date, m_Users.getByID(user_id), price, books.ToArray()));
-                    }
+                    buy_id = _buy_id;
+                    dt = list_item.buy_date;
+                    user_id = list_item.buy_user;
+                    price = list_item.buy_price;
+                    books.Add(new Buy.BuyItem(list_item.book_count, m_Books.getByID(list_item.book_id)));
+
+                    if (first) { first = false; }
                 }
-            }
-            finally
-            {
-                reader.Close();
-            }
 
-            return buys.ToArray();
+                if (!first)
+                {
+                    buys.Add(new Buy(buy_id, dt, m_Users.getByID(user_id), price, books.ToArray()));
+                }
+
+                return buys.ToArray();
+            }
         }
     }
 }

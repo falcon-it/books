@@ -64,6 +64,13 @@
     <Compile Include="Data\Elements\Authors.cs" />
     <Compile Include="Data\Elements\Baskets.cs" />
     <Compile Include="Data\Elements\Books.cs" />
+    <Compile Include="Data\Elements\Entity\Author.cs" />
+    <Compile Include="Data\Elements\Entity\AuthorBookLink.cs" />
+    <Compile Include="Data\Elements\Entity\Book.cs" />
+    <Compile Include="Data\Elements\Entity\Buy.cs" />
+    <Compile Include="Data\Elements\Entity\BuyItem.cs" />
+    <Compile Include="Data\Elements\Entity\Genre.cs" />
+    <Compile Include="Data\Elements\Entity\User.cs" />
     <Compile Include="Data\Elements\Genres.cs" />
     <Compile Include="Data\Elements\Users.cs" />
     <Compile Include="Program.cs" />
